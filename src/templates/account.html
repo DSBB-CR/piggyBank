@@ -1,0 +1,90 @@
+{{define "content2"}}
+<header class="topbar">
+  <div>
+    <a class="back" href="/">← Назад</a>
+    <h1>{{.Account.Name}}</h1>
+    <p class="muted">Баланс: <strong class="big">{{money .Account.Balance .Account.Currency}}</strong></p>
+  </div>
+</header>
+
+<section class="stats-row">
+  <div class="stat">
+    <span class="muted">Доходы</span>
+    <span class="up">+{{money .Account.Income .Account.Currency}}</span>
+  </div>
+  <div class="stat">
+    <span class="muted">Расходы</span>
+    <span class="down">{{money .Account.Expense .Account.Currency}}</span>
+  </div>
+  <div class="stat">
+    <span class="muted">Операций</span>
+    <span>{{len .Account.Transactions}}</span>
+  </div>
+</section>
+
+<section class="tx-form">
+  <h2>Добавить операцию</h2>
+  <form id="txForm">
+    <div class="row">
+      <input name="amount" type="number" step="0.01" required placeholder="Сумма (минус — расход)" autofocus>
+      <input name="note" placeholder="Комментарий">
+      <button class="btn primary">Добавить</button>
+    </div>
+    <p class="hint">Пример: <code>1500</code> — приход, <code>-450.50</code> — расход</p>
+  </form>
+</section>
+
+<section>
+  <h2>История</h2>
+  {{$acc := .Account}}
+  {{if .Account.Transactions}}
+  <table class="tx-table">
+    <thead><tr><th>Дата</th><th>Комментарий</th><th class="right">Сумма</th><th></th></tr></thead>
+    <tbody>
+    {{range .Account.SortedTransactions}}
+      <tr>
+        <td class="muted">{{.Date.Format "02.01.2006 15:04"}}</td>
+        <td>{{if .Note}}{{.Note}}{{else}}<span class="muted">—</span>{{end}}</td>
+        <td class="right {{if gt .Amount 0.0}}up{{else}}down{{end}}">
+          {{if gt .Amount 0.0}}+{{end}}{{money .Amount $acc.Currency}}
+        </td>
+        <td class="right">
+          <button class="icon del-tx" data-id="{{.ID}}" title="Удалить">✕</button>
+        </td>
+      </tr>
+    {{end}}
+    </tbody>
+  </table>
+  {{else}}
+    <p class="muted">Операций пока нет.</p>
+  {{end}}
+</section>
+
+<script>
+const accID = "{{.Account.ID}}";
+
+document.getElementById('txForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  const fd = new FormData(e.target);
+  const body = {
+    amount: parseFloat(fd.get('amount')),
+    note: fd.get('note') || '',
+  };
+  const res = await fetch(`/api/accounts/${accID}/transactions`, {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(body),
+  });
+  if (res.ok) location.reload();
+  else alert((await res.json()).error || 'Ошибка');
+});
+
+document.querySelectorAll('.del-tx').forEach(btn => {
+  btn.addEventListener('click', async () => {
+    if (!confirm('Удалить операцию?')) return;
+    await fetch(`/api/accounts/${accID}/transactions/${btn.dataset.id}`, {method: 'DELETE'});
+    location.reload();
+  });
+});
+</script>
+{{end}}

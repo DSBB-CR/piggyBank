@@ -1,0 +1,91 @@
+{{define "content"}}
+<header class="topbar">
+  <div>
+    <h1>💰 Мои счета</h1>
+    <p class="muted">Общий баланс: <strong>{{money .Total "RUB"}}</strong></p>
+  </div>
+  <button class="btn primary" onclick="openModal()">+ Счёт</button>
+</header>
+
+{{if .Accounts}}
+<section class="grid">
+  {{range .Accounts}}
+  <a class="card" href="/accounts/{{.ID}}">
+    <div class="card-head">
+      <span class="acc-name">{{.Name}}</span>
+      <span class="badge">{{.Currency}}</span>
+    </div>
+    <div class="balance">{{money .Balance .Currency}}</div>
+    <div class="stats">
+      <span class="up">+{{money .Income .Currency}}</span>
+      <span class="down">{{money .Expense .Currency}}</span>
+    </div>
+    <button class="icon del" data-id="{{.ID}}" title="Удалить">✕</button>
+  </a>
+  {{end}}
+</section>
+{{else}}
+<div class="empty">
+  <p>Пока нет ни одного счёта.</p>
+  <button class="btn primary" onclick="openModal()">Создать первый</button>
+</div>
+{{end}}
+
+<!-- Модалка -->
+<div class="modal-bg" id="modal">
+  <div class="modal">
+    <h2>Новый счёт</h2>
+    <form id="createForm">
+      <label>Название
+        <input name="name" required placeholder="Например, Тинькофф">
+      </label>
+      <label>Валюта
+        <select name="currency">
+          {{range .Currencies}}<option value="{{.}}">{{.}}</option>{{end}}
+        </select>
+      </label>
+      <label>Начальный баланс
+        <input name="initial" type="number" step="0.01" value="0">
+      </label>
+      <div class="modal-actions">
+        <button type="button" class="btn" onclick="closeModal()">Отмена</button>
+        <button class="btn primary">Создать</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+const modal = document.getElementById('modal');
+function openModal(){ modal.classList.add('open'); }
+function closeModal(){ modal.classList.remove('open'); }
+modal.addEventListener('click', e => { if (e.target === modal) closeModal(); });
+
+document.getElementById('createForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  const fd = new FormData(e.target);
+  const body = {
+    name: fd.get('name'),
+    currency: fd.get('currency'),
+    initial: parseFloat(fd.get('initial')) || 0,
+  };
+  const res = await fetch('/api/accounts', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(body),
+  });
+  if (res.ok) location.reload();
+  else alert((await res.json()).error || 'Ошибка');
+});
+
+document.querySelectorAll('.del').forEach(btn => {
+  btn.addEventListener('click', async e => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!confirm('Удалить счёт?')) return;
+    await fetch('/api/accounts/' + btn.dataset.id, {method: 'DELETE'});
+    location.reload();
+  });
+});
+</script>
+{{end}}
